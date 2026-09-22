@@ -36,7 +36,7 @@ console.log(greeting);
 
 ## 圖片
 
-![用本機 SVG 呈現的 Markdown 圖片範例](markdown-example.svg)
+![用本機 PNG 呈現的 Markdown 圖片範例](markdown-example.png)
 
 ## 表格
 
