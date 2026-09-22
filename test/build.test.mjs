@@ -69,9 +69,8 @@ test('builds an archive grouped by article year', async () => {
     assert.match(directoryPage, /<h2 class="archive-year-header">2026<sup class="archive-count">3<\/sup><\/h2>/);
     assert.match(directoryPage, /<a href="\/posts\/hello\/">hello<\/a>/);
     assert.match(directoryPage, /<a href="\/posts\/world\/">world<\/a>/);
-    assert.match(directoryPage, /<time datetime="2026-09-23">September 23, 2026<\/time>/);
     assert.match(directoryPage, /<a href="\/posts\/test\/">test<\/a>/);
-    assert.ok(directoryPage.indexOf('September 23, 2026') < directoryPage.indexOf('September 22, 2026'));
+    assert.doesNotMatch(directoryPage, /<time datetime=/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

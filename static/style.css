@@ -45,8 +45,7 @@ body {
   margin: 0;
 }
 
-.archive-count,
-.archive-meta {
+.archive-count {
   color: #6b7175;
   font-size: 0.8rem;
 }

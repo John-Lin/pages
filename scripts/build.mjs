@@ -69,7 +69,6 @@ function renderDirectory(articles) {
         <h2 class="archive-year-header">${year}<sup class="archive-count">${yearArticles.length}</sup></h2>
 ${yearArticles.map((article) => `        <article class="archive-entry">
           <h3 class="archive-entry-title"><a href="${article.url}">${escapeHtml(article.title)}</a></h3>
-          <div class="archive-meta"><time datetime="${article.date}">${displayDate(article.date)}</time></div>
         </article>`).join('\n')}
       </section>`).join('\n');
 
