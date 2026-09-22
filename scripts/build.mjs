@@ -41,6 +41,10 @@ function titleText(tokens) {
   }).join('');
 }
 
+function articleHtml(tokens) {
+  return marked.parser(tokens).replace(/<p>(<img\b[^>]*>)<\/p>/g, '<figure>$1</figure>');
+}
+
 function articleParts(markdown) {
   const tokens = marked.lexer(markdown);
   const titleIndex = tokens.findIndex((token) => token.type === 'heading' && token.depth === 1);
@@ -51,7 +55,7 @@ function articleParts(markdown) {
 
   const [titleToken] = tokens.splice(titleIndex, 1);
   const title = titleText(titleToken.tokens);
-  const body = sanitizeHtml(marked.parser(tokens), sanitizerOptions);
+  const body = sanitizeHtml(articleHtml(tokens), sanitizerOptions);
 
   return { body, title };
 }

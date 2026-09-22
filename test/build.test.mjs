@@ -15,6 +15,13 @@ test('renders Markdown as a semantic Instant View article', () => {
   assert.match(page, /<ul>\s*<li>First<\/li>\s*<li>Second<\/li>\s*<\/ul>/);
 });
 
+test('renders standalone Markdown images as Instant View figures', () => {
+  const page = renderArticle('# Article title\n\n![An image](photo.png)');
+
+  assert.match(page, /<figure><img src="photo\.png" alt="An image" \/><\/figure>/);
+  assert.doesNotMatch(page, /<p><img src="photo\.png"/);
+});
+
 test('renders the publication date beneath the article title', () => {
   const page = renderArticle('# Article title', 'style.css', '2026-09-22');
 
