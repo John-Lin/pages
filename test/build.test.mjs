@@ -51,7 +51,7 @@ test('removes unsafe HTML from rendered Markdown', () => {
   assert.match(page, /<a href="https:\/\/example\.com">Safe link<\/a>/);
 });
 
-test('builds a chronological directory grouped by article date', async () => {
+test('builds an archive grouped by article year', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'telegram-pages-'));
   const contentDirectory = join(directory, 'content');
   const outputDirectory = join(directory, 'docs');
@@ -65,12 +65,13 @@ test('builds a chronological directory grouped by article date', async () => {
     await buildSite({ contentDirectory, outputDirectory });
 
     const directoryPage = await readFile(join(outputDirectory, 'index.html'), 'utf8');
-    assert.match(directoryPage, /<time datetime="2026-09-22">9月22日<\/time>/);
+    assert.match(directoryPage, /<h1>Archives<\/h1>/);
+    assert.match(directoryPage, /<h2 class="archive-year-header">2026<sup class="archive-count">3<\/sup><\/h2>/);
     assert.match(directoryPage, /<a href="\/posts\/hello\/">hello<\/a>/);
     assert.match(directoryPage, /<a href="\/posts\/world\/">world<\/a>/);
-    assert.match(directoryPage, /<time datetime="2026-09-23">9月23日<\/time>/);
+    assert.match(directoryPage, /<time datetime="2026-09-23">September 23, 2026<\/time>/);
     assert.match(directoryPage, /<a href="\/posts\/test\/">test<\/a>/);
-    assert.ok(directoryPage.indexOf('9月23日') < directoryPage.indexOf('9月22日'));
+    assert.ok(directoryPage.indexOf('September 23, 2026') < directoryPage.indexOf('September 22, 2026'));
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

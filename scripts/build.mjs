@@ -60,21 +60,17 @@ function articleParts(markdown) {
   return { body, title };
 }
 
-function directoryDate(date) {
-  const [, month, day] = date.split('-');
-  return `${Number(month)}月${Number(day)}日`;
-}
-
 function renderDirectory(articles) {
-  const articlesByDate = Map.groupBy(
+  const articlesByYear = Map.groupBy(
     [...articles].sort((left, right) => right.date.localeCompare(left.date) || left.title.localeCompare(right.title)),
-    (article) => article.date
+    (article) => article.date.slice(0, 4)
   );
-  const groups = [...articlesByDate].map(([date, dateArticles]) => `      <section class="archive-day">
-        <h2><time datetime="${date}">${directoryDate(date)}</time></h2>
-        <ul>
-${dateArticles.map((article) => `          <li><a href="${article.url}">${escapeHtml(article.title)}</a></li>`).join('\n')}
-        </ul>
+  const groups = [...articlesByYear].map(([year, yearArticles]) => `      <section class="archive-year">
+        <h2 class="archive-year-header">${year}<sup class="archive-count">${yearArticles.length}</sup></h2>
+${yearArticles.map((article) => `        <article class="archive-entry">
+          <h3 class="archive-entry-title"><a href="${article.url}">${escapeHtml(article.title)}</a></h3>
+          <div class="archive-meta"><time datetime="${article.date}">${displayDate(article.date)}</time></div>
+        </article>`).join('\n')}
       </section>`).join('\n');
 
   return `<!doctype html>
@@ -82,15 +78,15 @@ ${dateArticles.map((article) => `          <li><a href="${article.url}">${escape
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>文章目錄</title>
+  <title>Archives</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main class="page">
     <header class="article-header">
-      <h1>文章目錄</h1>
+      <h1>Archives</h1>
     </header>
-    <nav aria-label="文章目錄">
+    <nav aria-label="Archives">
 ${groups}
     </nav>
   </main>

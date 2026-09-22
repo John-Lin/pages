@@ -31,6 +31,45 @@ body {
   font-size: 0.9rem;
 }
 
+.archive-year {
+  margin-top: 2.5rem;
+}
+
+.archive-year:not(:last-of-type) {
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #eeeeee;
+}
+
+.archive-year-header {
+  margin: 0;
+}
+
+.archive-count,
+.archive-meta {
+  color: #6b7175;
+  font-size: 0.8rem;
+}
+
+.archive-count {
+  margin-left: 0.75rem;
+}
+
+.archive-entry {
+  padding: 0.3rem 0;
+  margin: 0.8rem 0;
+}
+
+.archive-entry-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.archive-entry-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
 h1,
 h2,
 h3,
