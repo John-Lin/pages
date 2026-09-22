@@ -67,6 +67,7 @@ test('builds an archive grouped by article year', async () => {
     const directoryPage = await readFile(join(outputDirectory, 'index.html'), 'utf8');
     assert.match(directoryPage, /<h1>Archives<\/h1>/);
     assert.match(directoryPage, /<h2 class="archive-year-header">2026<sup class="archive-count">3<\/sup><\/h2>/);
+    assert.match(directoryPage, /<h3 class="archive-month-header">September<sup class="archive-count">3<\/sup><\/h3>/);
     assert.match(directoryPage, /<a href="\/posts\/hello\/">hello<\/a>/);
     assert.match(directoryPage, /<a href="\/posts\/world\/">world<\/a>/);
     assert.match(directoryPage, /<a href="\/posts\/test\/">test<\/a>/);

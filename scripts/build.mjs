@@ -60,17 +60,32 @@ function articleParts(markdown) {
   return { body, title };
 }
 
+function displayMonth(date) {
+  return new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' })
+    .format(new Date(`${date}T00:00:00Z`));
+}
+
 function renderDirectory(articles) {
   const articlesByYear = Map.groupBy(
     [...articles].sort((left, right) => right.date.localeCompare(left.date) || left.title.localeCompare(right.title)),
     (article) => article.date.slice(0, 4)
   );
-  const groups = [...articlesByYear].map(([year, yearArticles]) => `      <section class="archive-year">
+  const groups = [...articlesByYear].map(([year, yearArticles]) => {
+    const articlesByMonth = Map.groupBy(yearArticles, (article) => article.date.slice(0, 7));
+    const months = [...articlesByMonth].map(([month, monthArticles]) => `        <section class="archive-month">
+          <h3 class="archive-month-header">${displayMonth(month)}<sup class="archive-count">${monthArticles.length}</sup></h3>
+          <div class="archive-month-entries">
+${monthArticles.map((article) => `            <article class="archive-entry">
+              <h4 class="archive-entry-title"><a href="${article.url}">${escapeHtml(article.title)}</a></h4>
+            </article>`).join('\n')}
+          </div>
+        </section>`).join('\n');
+
+    return `      <section class="archive-year">
         <h2 class="archive-year-header">${year}<sup class="archive-count">${yearArticles.length}</sup></h2>
-${yearArticles.map((article) => `        <article class="archive-entry">
-          <h3 class="archive-entry-title"><a href="${article.url}">${escapeHtml(article.title)}</a></h3>
-        </article>`).join('\n')}
-      </section>`).join('\n');
+${months}
+      </section>`;
+  }).join('\n');
 
   return `<!doctype html>
 <html lang="zh-Hant">
