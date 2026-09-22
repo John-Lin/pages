@@ -1,4 +1,6 @@
 ~version: "2.1"
 
 title: //h1[@data-instant-view="title"]
+@datetime(0, "en-US", "MMMM d, yyyy"): //time[@data-instant-view="published-date"]
+published_date: $@
 body: //article[@data-instant-view="article"]

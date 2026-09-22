@@ -24,6 +24,13 @@ body {
   margin-bottom: 2.5rem;
 }
 
+.published-date {
+  display: block;
+  margin-top: 0.75rem;
+  color: #6b7175;
+  font-size: 0.9rem;
+}
+
 h1,
 h2,
 h3,

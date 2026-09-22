@@ -95,9 +95,17 @@ ${groups}
 `;
 }
 
-export function renderArticle(markdown, stylesheetHref = 'style.css') {
+function displayDate(date) {
+  return new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' })
+    .format(new Date(`${date}T00:00:00Z`));
+}
+
+export function renderArticle(markdown, stylesheetHref = 'style.css', publishedDate) {
   const { body, title } = articleParts(markdown);
   const safeTitle = escapeHtml(title);
+  const dateMarkup = publishedDate
+    ? `\n      <time class="published-date" data-instant-view="published-date" datetime="${publishedDate}">${displayDate(publishedDate)}</time>`
+    : '';
 
   return `<!doctype html>
 <html lang="zh-Hant">
@@ -113,7 +121,7 @@ export function renderArticle(markdown, stylesheetHref = 'style.css') {
 <body>
   <main class="page">
     <header class="article-header">
-      <h1 data-instant-view="title">${safeTitle}</h1>
+      <h1 data-instant-view="title">${safeTitle}</h1>${dateMarkup}
     </header>
     <article data-instant-view="article">
       <div class="article-body">
@@ -245,7 +253,7 @@ export async function buildSite({
     const { title } = articleParts(markdown);
 
     await mkdir(dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, renderArticle(markdown, stylesheetHref));
+    await writeFile(outputPath, renderArticle(markdown, stylesheetHref, date));
     articles.push({ date, title, url: `/${pathWithoutExtension}/` });
   }
 

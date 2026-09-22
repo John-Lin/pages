@@ -15,6 +15,15 @@ test('renders Markdown as a semantic Instant View article', () => {
   assert.match(page, /<ul>\s*<li>First<\/li>\s*<li>Second<\/li>\s*<\/ul>/);
 });
 
+test('renders the publication date beneath the article title', () => {
+  const page = renderArticle('# Article title', 'style.css', '2026-09-22');
+
+  assert.match(
+    page,
+    /<time class="published-date" data-instant-view="published-date" datetime="2026-09-22">September 22, 2026<\/time>/
+  );
+});
+
 test('renders Markdown in the article title as safe plain text', () => {
   const page = renderArticle('# A **bold** & <em>safe</em> title');
 

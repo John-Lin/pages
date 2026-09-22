@@ -11,7 +11,7 @@ content/posts/hello.md        → https://pages.johnlin.dev/posts/hello/
 content/posts/notes/world.md  → https://pages.johnlin.dev/posts/notes/world/
 ```
 
-Every article must start with its publication date, followed by a level-one title:
+Every article must start with its publication date, followed by a level-one title. The date is shown directly below the title and is passed to Telegram Instant View as `published_date`:
 
 ```markdown
 ---
