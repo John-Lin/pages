@@ -1,6 +1,6 @@
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
@@ -56,7 +56,46 @@ function articleParts(markdown) {
   return { body, title };
 }
 
-export function renderArticle(markdown) {
+function directoryDate(date) {
+  const [, month, day] = date.split('-');
+  return `${Number(month)}月${Number(day)}日`;
+}
+
+function renderDirectory(articles) {
+  const articlesByDate = Map.groupBy(
+    [...articles].sort((left, right) => right.date.localeCompare(left.date) || left.title.localeCompare(right.title)),
+    (article) => article.date
+  );
+  const groups = [...articlesByDate].map(([date, dateArticles]) => `      <section class="archive-day">
+        <h2><time datetime="${date}">${directoryDate(date)}</time></h2>
+        <ul>
+${dateArticles.map((article) => `          <li><a href="${article.url}">${escapeHtml(article.title)}</a></li>`).join('\n')}
+        </ul>
+      </section>`).join('\n');
+
+  return `<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>文章目錄</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="page">
+    <header class="article-header">
+      <h1>文章目錄</h1>
+    </header>
+    <nav aria-label="文章目錄">
+${groups}
+    </nav>
+  </main>
+</body>
+</html>
+`;
+}
+
+export function renderArticle(markdown, stylesheetHref = 'style.css') {
   const { body, title } = articleParts(markdown);
   const safeTitle = escapeHtml(title);
 
@@ -69,7 +108,7 @@ export function renderArticle(markdown) {
   <meta property="og:type" content="article">
   <meta property="og:title" content="${safeTitle}">
   <title>${safeTitle}</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="${stylesheetHref}">
 </head>
 <body>
   <main class="page">
@@ -87,13 +126,106 @@ ${body}
 `;
 }
 
+async function markdownFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(entries.map(async (entry) => {
+    const entryPath = join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      return markdownFiles(entryPath);
+    }
+
+    return entry.isFile() && entry.name.endsWith('.md') ? [entryPath] : [];
+  }));
+
+  return files.flat();
+}
+
+function containsRawHtml(tokens) {
+  return tokens.some((token) => token.type === 'html' || (token.tokens && containsRawHtml(token.tokens)));
+}
+
+function containsTaskList(tokens) {
+  return tokens.some((token) => token.task || (token.tokens && containsTaskList(token.tokens)) || (token.items && containsTaskList(token.items)));
+}
+
+function containsImageInBlockquote(tokens, insideBlockquote = false) {
+  return tokens.some((token) => {
+    const isInsideBlockquote = insideBlockquote || token.type === 'blockquote';
+
+    if (isInsideBlockquote && token.type === 'image') {
+      return true;
+    }
+
+    return (token.tokens && containsImageInBlockquote(token.tokens, isInsideBlockquote))
+      || (token.items && containsImageInBlockquote(token.items, isInsideBlockquote));
+  });
+}
+
+function hasUnsupportedImage(tokens) {
+  return tokens.some((token) => {
+    if (token.type === 'image') {
+      const extension = token.href.split(/[?#]/)[0].split('.').pop()?.toLowerCase();
+      return !['gif', 'jpg', 'jpeg', 'png'].includes(extension);
+    }
+
+    return token.tokens && hasUnsupportedImage(token.tokens);
+  });
+}
+
+function validateInstantViewMarkdown(markdown, inputPath) {
+  const tokens = marked.lexer(markdown);
+
+  if (containsRawHtml(tokens)) {
+    throw new Error(`${inputPath} contains raw HTML. Raw HTML is not supported by Telegram Instant View.`);
+  }
+
+  if (containsTaskList(tokens)) {
+    throw new Error(`${inputPath} contains task lists. task lists are not supported by Telegram Instant View.`);
+  }
+
+  if (hasUnsupportedImage(tokens)) {
+    throw new Error(`${inputPath} only supports GIF, JPG, and PNG images for Telegram Instant View.`);
+  }
+
+  if (containsImageInBlockquote(tokens)) {
+    throw new Error(`${inputPath} contains images inside blockquotes. images inside blockquotes are not supported by Telegram Instant View.`);
+  }
+}
+
+function isCalendarDate(value) {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+function articleSource(markdown, inputPath) {
+  const frontmatter = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+
+  if (!frontmatter) {
+    throw new Error(`${inputPath} must begin with a date frontmatter block.`);
+  }
+
+  const date = frontmatter[1].match(/^date:\s*(\d{4}-\d{2}-\d{2})\s*$/m)?.[1];
+
+  if (!date) {
+    throw new Error(`${inputPath} must include a date in YYYY-MM-DD format.`);
+  }
+
+  if (!isCalendarDate(date)) {
+    throw new Error(`${inputPath} must include a valid date in YYYY-MM-DD format.`);
+  }
+
+  return { date, markdown: markdown.slice(frontmatter[0].length) };
+}
+
 export async function buildSite({
-  inputPath = resolve(projectDirectory, 'content/article.md'),
+  contentDirectory = resolve(projectDirectory, 'content'),
   outputDirectory = resolve(projectDirectory, 'docs'),
   staticDirectory = resolve(projectDirectory, 'static')
 } = {}) {
-  const markdown = await readFile(inputPath, 'utf8');
-  const page = renderArticle(markdown);
+  const inputPaths = await markdownFiles(contentDirectory);
 
   await rm(outputDirectory, { recursive: true, force: true });
   await mkdir(outputDirectory, { recursive: true });
@@ -102,7 +234,22 @@ export async function buildSite({
     await cp(staticDirectory, outputDirectory, { recursive: true });
   }
 
-  await writeFile(resolve(outputDirectory, 'index.html'), page);
+  const articles = [];
+
+  for (const inputPath of inputPaths) {
+    const { date, markdown } = articleSource(await readFile(inputPath, 'utf8'), inputPath);
+    validateInstantViewMarkdown(markdown, inputPath);
+    const pathWithoutExtension = relative(contentDirectory, inputPath).replace(/\.md$/, '');
+    const outputPath = resolve(outputDirectory, pathWithoutExtension, 'index.html');
+    const stylesheetHref = relative(dirname(outputPath), resolve(outputDirectory, 'style.css')) || 'style.css';
+    const { title } = articleParts(markdown);
+
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, renderArticle(markdown, stylesheetHref));
+    articles.push({ date, title, url: `/${pathWithoutExtension}/` });
+  }
+
+  await writeFile(resolve(outputDirectory, 'index.html'), renderDirectory(articles));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

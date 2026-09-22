@@ -1,3 +1,6 @@
+---
+date: 2026-09-22
+---
 # 歡迎來到這裡
 
 這是一個簡潔的文章頁面，也是 Markdown 語法的展示區。
@@ -36,7 +39,7 @@ console.log(greeting);
 
 ## 圖片
 
-![用本機 PNG 呈現的 Markdown 圖片範例](markdown-example.png)
+![用本機 PNG 呈現的 Markdown 圖片範例](/markdown-example.png)
 
 ## 表格
 

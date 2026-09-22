@@ -35,23 +35,198 @@ test('removes unsafe HTML from rendered Markdown', () => {
   assert.match(page, /<a href="https:\/\/example\.com">Safe link<\/a>/);
 });
 
-test('builds the Markdown article as a deployable index page', async () => {
+test('builds a chronological directory grouped by article date', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'telegram-pages-'));
+  const contentDirectory = join(directory, 'content');
+  const outputDirectory = join(directory, 'docs');
+
+  try {
+    await mkdir(join(contentDirectory, 'posts'), { recursive: true });
+    await writeFile(join(contentDirectory, 'posts', 'hello.md'), '---\ndate: 2026-09-22\n---\n# hello');
+    await writeFile(join(contentDirectory, 'posts', 'world.md'), '---\ndate: 2026-09-22\n---\n# world');
+    await writeFile(join(contentDirectory, 'posts', 'test.md'), '---\ndate: 2026-09-23\n---\n# test');
+
+    await buildSite({ contentDirectory, outputDirectory });
+
+    const directoryPage = await readFile(join(outputDirectory, 'index.html'), 'utf8');
+    assert.match(directoryPage, /<time datetime="2026-09-22">9月22日<\/time>/);
+    assert.match(directoryPage, /<a href="\/posts\/hello\/">hello<\/a>/);
+    assert.match(directoryPage, /<a href="\/posts\/world\/">world<\/a>/);
+    assert.match(directoryPage, /<time datetime="2026-09-23">9月23日<\/time>/);
+    assert.match(directoryPage, /<a href="\/posts\/test\/">test<\/a>/);
+    assert.ok(directoryPage.indexOf('9月23日') < directoryPage.indexOf('9月22日'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('requires every article to declare its publication date', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'telegram-pages-'));
+  const contentDirectory = join(directory, 'content');
+  const outputDirectory = join(directory, 'docs');
+
+  try {
+    await mkdir(join(contentDirectory, 'posts'), { recursive: true });
+    await writeFile(join(contentDirectory, 'posts', 'undated.md'), '# Undated article');
+
+    await assert.rejects(
+      buildSite({ contentDirectory, outputDirectory }),
+      /must begin with a date frontmatter block/
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('requires dates in an unambiguous format', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'telegram-pages-'));
+  const contentDirectory = join(directory, 'content');
+  const outputDirectory = join(directory, 'docs');
+
+  try {
+    await mkdir(join(contentDirectory, 'posts'), { recursive: true });
+    await writeFile(
+      join(contentDirectory, 'posts', 'invalid-date.md'),
+      '---\ndate: September 22\n---\n# Invalid date'
+    );
+
+    await assert.rejects(
+      buildSite({ contentDirectory, outputDirectory }),
+      /must include a date in YYYY-MM-DD format/
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('rejects calendar dates that do not exist', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'telegram-pages-'));
+  const contentDirectory = join(directory, 'content');
+  const outputDirectory = join(directory, 'docs');
+
+  try {
+    await mkdir(join(contentDirectory, 'posts'), { recursive: true });
+    await writeFile(
+      join(contentDirectory, 'posts', 'impossible-date.md'),
+      '---\ndate: 2026-02-30\n---\n# Impossible date'
+    );
+
+    await assert.rejects(
+      buildSite({ contentDirectory, outputDirectory }),
+      /must include a valid date in YYYY-MM-DD format/
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('rejects raw HTML that Telegram Instant View cannot represent', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'telegram-pages-'));
+  const contentDirectory = join(directory, 'content');
+  const outputDirectory = join(directory, 'docs');
+
+  try {
+    await mkdir(join(contentDirectory, 'posts'), { recursive: true });
+    await writeFile(
+      join(contentDirectory, 'posts', 'unsafe.md'),
+      '---\ndate: 2026-09-22\n---\n# Unsafe article\n\n<details>Hidden content</details>'
+    );
+
+    await assert.rejects(
+      buildSite({ contentDirectory, outputDirectory }),
+      /Raw HTML is not supported by Telegram Instant View/
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('rejects task lists that Telegram Instant View cannot represent', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'telegram-pages-'));
+  const contentDirectory = join(directory, 'content');
+  const outputDirectory = join(directory, 'docs');
+
+  try {
+    await mkdir(join(contentDirectory, 'posts'), { recursive: true });
+    await writeFile(
+      join(contentDirectory, 'posts', 'tasks.md'),
+      '---\ndate: 2026-09-22\n---\n# Tasks\n\n- [x] Done\n- [ ] Not done'
+    );
+
+    await assert.rejects(
+      buildSite({ contentDirectory, outputDirectory }),
+      /task lists are not supported by Telegram Instant View/
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('rejects image formats that Telegram Instant View does not support', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'telegram-pages-'));
+  const contentDirectory = join(directory, 'content');
+  const outputDirectory = join(directory, 'docs');
+
+  try {
+    await mkdir(join(contentDirectory, 'posts'), { recursive: true });
+    await writeFile(
+      join(contentDirectory, 'posts', 'diagram.md'),
+      '---\ndate: 2026-09-22\n---\n# Diagram\n\n![Diagram](diagram.svg)'
+    );
+
+    await assert.rejects(
+      buildSite({ contentDirectory, outputDirectory }),
+      /only supports GIF, JPG, and PNG images/
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('rejects images inside blockquotes that Telegram Instant View cannot represent', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'telegram-pages-'));
+  const contentDirectory = join(directory, 'content');
+  const outputDirectory = join(directory, 'docs');
+
+  try {
+    await mkdir(join(contentDirectory, 'posts'), { recursive: true });
+    await writeFile(
+      join(contentDirectory, 'posts', 'quoted-image.md'),
+      '---\ndate: 2026-09-22\n---\n# Quoted image\n\n> ![Picture](photo.png)'
+    );
+
+    await assert.rejects(
+      buildSite({ contentDirectory, outputDirectory }),
+      /images inside blockquotes are not supported by Telegram Instant View/
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('builds each dated Markdown article at its source path', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'telegram-pages-'));
+  const contentDirectory = join(directory, 'content');
   const outputDirectory = join(directory, 'docs');
   const staticDirectory = join(directory, 'static');
 
   try {
+    await mkdir(join(contentDirectory, 'posts'), { recursive: true });
     await mkdir(staticDirectory);
-    await writeFile(join(directory, 'content.md'), '# Published article\n\nThis is ready for Telegram.');
+    await writeFile(
+      join(contentDirectory, 'posts', 'hello.md'),
+      '---\ndate: 2026-09-22\n---\n# Hello\n\nThis is ready for Telegram.'
+    );
     await writeFile(join(staticDirectory, 'style.css'), 'body { color: black; }');
 
-    await buildSite({ inputPath: join(directory, 'content.md'), outputDirectory, staticDirectory });
+    await buildSite({ contentDirectory, outputDirectory, staticDirectory });
 
-    const page = await readFile(join(outputDirectory, 'index.html'), 'utf8');
+    const page = await readFile(join(outputDirectory, 'posts', 'hello', 'index.html'), 'utf8');
     const stylesheet = await readFile(join(outputDirectory, 'style.css'), 'utf8');
-    assert.match(page, /<title>Published article<\/title>/);
+    assert.match(page, /<title>Hello<\/title>/);
     assert.match(page, /<article data-instant-view="article">/);
     assert.match(page, /This is ready for Telegram/);
+    assert.match(page, /href="\.\.\/\.\.\/style\.css"/);
     assert.equal(stylesheet, 'body { color: black; }');
   } finally {
     await rm(directory, { recursive: true, force: true });
